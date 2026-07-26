@@ -43,6 +43,8 @@ def register_volunteer():
     
     volunteer_id = str(uuid.uuid4())
     item = {
+        'pk': f'VOLUNTEER#{volunteer_id}',
+        'sk': f'VOLUNTEER#{volunteer_id}',
         'volunteer_id': volunteer_id,
         'name': data['name'],
         'email': data['email'],

@@ -1,0 +1,123 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: volunteer-service-config
+  labels:
+    app: volunteer-service
+  namespace: solidarytech
+data:
+  PORT: "8083"
+  AWS_REGION: "us-east-1"
+  AWS_DYNAMODB_TABLE: "SolidaryTechVolunteers"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: volunteer-service
+  labels:
+    app: volunteer-service
+  namespace: solidarytech
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
+  selector:
+    matchLabels:
+      app: volunteer-service
+
+  template:
+    metadata:
+      labels:
+        app: volunteer-service
+    spec:
+      serviceAccountName: volunteer-service-sa
+
+      securityContext:
+        runAsNonRoot: false
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: volunteer-service
+          image: 451638006344.dkr.ecr.us-east-1.amazonaws.com/volunteer-service:v1.0.3
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: http
+              containerPort: 8083
+              protocol: TCP
+
+          envFrom:
+            - configMapRef:
+                name: volunteer-service-config
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            failureThreshold: 30
+            periodSeconds: 5
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: volunteer-service
+  labels:
+    app: volunteer-service
+  namespace: solidarytech
+spec:
+  type: ClusterIP
+  selector:
+    app: volunteer-service
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8083
+      targetPort: http
