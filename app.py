@@ -14,8 +14,10 @@ load_dotenv()
 
 app = Flask(__name__)
 
-AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
-DYNAMODB_TABLE = os.getenv("AWS_DYNAMODB_TABLE")
+_raw_region = os.getenv("AWS_REGION", "us-east-1")
+AWS_REGION = _raw_region.strip().strip('"').strip("'")
+_raw_table = os.getenv("AWS_DYNAMODB_TABLE")
+DYNAMODB_TABLE = _raw_table.strip().strip('"').strip("'") if _raw_table else None
 
 if not DYNAMODB_TABLE:
     log.critical("Erro: AWS_DYNAMODB_TABLE não definida.")
